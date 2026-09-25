@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Color With Me</title>
+<meta name="description" content="A coloring game for kids with 500 levels">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#8a5cf6">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fef6e4;
+  --card:#ffffff;
+  --ink:#3d2b56;
+  --pink:#ff6f9c;
+  --purple:#8a5cf6;
+  --yellow:#ffc93c;
+  --mint:#4ecdc4;
+  --lock:#d8cfe6;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  background:var(--bg);
+  font-family:'Baloo 2',sans-serif;
+  color:var(--ink);
+  overflow-x:hidden;
+}
+.wrap{max-width:480px;margin:0 auto;padding:18px 16px 40px;}
+.screen{display:none;}
+.screen.active{display:block;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.title{font-size:24px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.title .dot{width:14px;height:14px;border-radius:50%;background:var(--pink);display:inline-block;}
+.stars{
+  font-size:14px;font-weight:700;background:var(--card);
+  padding:8px 14px;border-radius:999px;display:flex;align-items:center;gap:6px;
+  box-shadow:0 3px 0 rgba(61,43,86,0.12);
+}
+
+.map-sub{font-size:13.5px;opacity:.65;margin:0 0 14px;}
+.level-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:9px;
+}
+.level-tile{
+  aspect-ratio:1;border-radius:14px;border:none;font-family:'Baloo 2',sans-serif;
+  font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;box-shadow:0 3px 0 rgba(61,43,86,0.14);color:#fff;background:var(--purple);
+}
+.level-tile.done{background:var(--mint);}
+.level-tile.locked{background:var(--lock);color:#9c8fb5;box-shadow:none;cursor:default;font-size:16px;}
+.level-tile:active:not(.locked){transform:translateY(2px);}
+
+.playbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.back-btn{
+  width:40px;height:40px;border-radius:12px;border:none;background:var(--card);
+  font-size:18px;cursor:pointer;box-shadow:0 3px 0 rgba(61,43,86,0.12);flex-shrink:0;
+}
+.level-label{font-size:18px;font-weight:800;}
+
+.stage{
+  background:var(--card);
+  border-radius:28px;
+  padding:14px;
+  box-shadow:0 8px 0 rgba(61,43,86,0.10);
+  margin-bottom:16px;
+}
+.canvas-holder{
+  background:repeating-conic-gradient(#f4eee0 0% 25%, #fffdf7 0% 50%) 0/16px 16px;
+  border-radius:20px;overflow:hidden;
+}
+#svgHost{width:100%;display:block;touch-action:manipulation;}
+#svgHost path,#svgHost circle,#svgHost ellipse,#svgHost rect,#svgHost polygon{cursor:pointer;transition:filter .1s;}
+#svgHost path:active,#svgHost circle:active,#svgHost ellipse:active,#svgHost rect:active,#svgHost polygon:active{filter:brightness(0.9);}
+
+.palette{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  margin-top:14px;padding:6px 0;
+}
+.swatch{
+  width:42px;height:42px;border-radius:50%;border:3px solid #fff;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);cursor:pointer;
+}
+.swatch.active{outline:3px solid var(--ink);outline-offset:2px;}
+
+.actions{display:flex;gap:10px;margin-top:14px;}
+.btn{
+  flex:1;padding:13px;border:none;border-radius:14px;font-family:'Baloo 2',sans-serif;
+  font-weight:700;font-size:15px;cursor:pointer;
+  box-shadow:0 4px 0 rgba(0,0,0,0.15);
+}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.15);}
+.btn.primary{background:var(--mint);color:#fff;}
+.btn.ghost{background:var(--bg);color:var(--ink);}
+
+.ad-slot{
+  background:var(--card);border-radius:20px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;margin-bottom:14px;
+  box-shadow:0 6px 0 rgba(61,43,86,0.10);
+}
+.ad-badge{
+  font-size:10px;font-weight:800;background:var(--yellow);color:var(--ink);
+  padding:3px 8px;border-radius:6px;flex-shrink:0;
+}
+.ad-slot p{margin:0;font-size:13px;opacity:.65;flex:1;}
+
+.overlay{
+  position:fixed;inset:0;background:rgba(61,43,86,0.55);
+  display:none;align-items:center;justify-content:center;z-index:20;padding:20px;
+}
+.overlay.show{display:flex;}
+.overlay-card{
+  background:#fff;border-radius:24px;padding:28px 22px;text-align:center;max-width:320px;width:100%;
+}
+.overlay-card .emoji{font-size:52px;margin-bottom:10px;}
+.overlay-card h3{margin:0 0 8px;font-size:20px;}
+.overlay-card p{margin:0 0 14px;font-size:13.5px;opacity:.7;line-height:1.6;}
+.overlay-actions{display:flex;flex-direction:column;gap:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="screen active" id="mapScreen">
+    <div class="topbar">
+      <div class="title"><span class="dot"></span>Color With Me</div>
+      <div class="stars">⭐ <span id="starCount">0</span></div>
+    </div>
+    <p class="map-sub">500 levels — color one to unlock the next!</p>
+    <div class="level-grid" id="levelGrid"></div>
+  </div>
+
+  <div class="screen" id="playScreen">
+    <div class="playbar">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="level-label">Level <span id="levelNum">1</span></div>
+    </div>
+
+    <div class="stage">
+      <div class="canvas-holder">
+        <div id="svgHost"></div>
+      </div>
+      <div class="palette" id="palette"></div>
+      <div class="actions">
+        <button class="btn ghost" id="clearBtn">Clear</button>
+        <button class="btn primary" id="doneBtn">Done! 🎉</button>
+      </div>
+    </div>
+
+    <div class="ad-slot">
+      <span class="ad-badge">Ad</span>
+      <p>This is where the real ad (AdMob) shows up — this is what generates revenue in the real app</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="adOverlay">
+  <div class="overlay-card">
+    <div class="emoji">🎉</div>
+    <h3 id="overlayTitle">Level Complete!</h3>
+    <p>In the real app, a short AdMob ad plays here before the next level unlocks. This is what generates the revenue.</p>
+    <div class="overlay-actions">
+      <button class="btn primary" id="nextLevelBtn">Next Level ▶</button>
+      <button class="btn ghost" id="backToMapBtn">Level Map</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL_LEVELS = 500;
+const colors = ['#ff6f9c','#ffc93c','#4ecdc4','#8a5cf6','#ff8c42','#5b9bd5','#7fd858','#c65d3b','#ffffff','#2e2e2e'];
+let currentColor = colors[0];
+let currentColorIdx = 0;
+let currentLevel = 1;
+
+let progress = { unlocked: 1, completed: [] };
+try{
+  const saved = localStorage.getItem('cwm-progress-v1');
+  if(saved){ progress = JSON.parse(saved); }
+}catch(e){}
+function saveProgress(){
+  try{ localStorage.setItem('cwm-progress-v1', JSON.stringify(progress)); }catch(e){}
+}
+
+function mulberry32(seed){
+  return function(){
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function genFlower(level, rand){
+  const petals = Math.min(5 + Math.floor(level / 25), 14);
+  const offset = Math.floor(rand() * (360 / petals));
+  let parts = [];
+  for(let i=0;i<petals;i++){
+    const angle = (360/petals)*i + offset;
+    parts.push(`<ellipse data-id="p${i}" cx="150" cy="92" rx="19" ry="52" fill="#ffffff" stroke="#3d2b56" stroke-width="4" transform="rotate(${angle} 150 150)"/>`);
+  }
+  const dotRing = Math.floor(level/100)*4;
+  for(let i=0;i<dotRing;i++){
+    const angle = (360/Math.max(dotRing,1))*i + offset/2;
+    const rad = Math.PI/180*angle;
+    const cx = 150 + Math.cos(rad)*128;
+    const cy = 150 + Math.sin(rad)*128;
+    parts.push(`<circle data-id="dot${i}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="9" fill="#ffffff" stroke="#3d2b56" stroke-width="3"/>`);
+  }
+  parts.push(`<circle data-id="center" cx="150" cy="150" r="27" fill="#ffffff" stroke="#3d2b56" stroke-width="4"/>`);
+  return parts.join('');
+}
+
+function genGrid(level, rand){
+  const cols = Math.min(3 + Math.floor(level/70), 7);
+  const rows = Math.min(3 + Math.floor(level/90), 5);
+  const gw = 260, gh = 220, sx = 20, sy = 40;
+  const cw = gw/cols, ch = gh/rows;
+  let parts = [];
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x = sx + c*cw + 3, y = sy + r*ch + 3;
+      const rounded = (r+c) % 2 === 0;
+      if(rounded){
+        parts.push(`<rect data-id="cell${r}-${c}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(cw-6).toFixed(1)}" height="${(ch-6).toFixed(1)}" rx="12" fill="#ffffff" stroke="#3d2b56" stroke-width="3"/>`);
+      }else{
+        const cx = x + (cw-6)/2, cy = y + (ch-6)/2, rr = Math.min(cw,ch)/2 - 5;
+        parts.push(`<circle data-id="cell${r}-${c}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rr.toFixed(1)}" fill="#ffffff" stroke="#3d2b56" stroke-width="3"/>`);
+      }
+    }
+  }
+  return parts.join('');
+}
+
+function genSun(level, rand){
+  const rays = Math.min(6 + Math.floor(level/20), 20);
+  const offset = rand()*10;
+  let parts = [];
+  const rInner = 46, rOuter = 128;
+  const halfAngle = (360/rays)/2 * 0.55;
+  for(let i=0;i<rays;i++){
+    const a = (360/rays)*i + offset;
+    const a1 = (a-halfAngle) * Math.PI/180, a2 = (a+halfAngle) * Math.PI/180;
+    const x1 = 150+Math.cos(a1)*rInner, y1 = 150+Math.sin(a1)*rInner;
+    const x2 = 150+Math.cos(a2)*rInner, y2 = 150+Math.sin(a2)*rInner;
+    const xt = 150+Math.cos(a*Math.PI/180)*rOuter, yt = 150+Math.sin(a*Math.PI/180)*rOuter;
+    parts.push(`<polygon data-id="ray${i}" points="${x1.toFixed(1)},${y1.toFixed(1)} ${xt.toFixed(1)},${yt.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="#ffffff" stroke="#3d2b56" stroke-width="3.5"/>`);
+  }
+  parts.push(`<circle data-id="face" cx="150" cy="150" r="${rInner}" fill="#ffffff" stroke="#3d2b56" stroke-width="4"/>`);
+  return parts.join('');
+}
+
+function generateLevelSVG(level){
+  const rand = mulberry32(level*7919 + 13);
+  const pattern = level % 3;
+  let inner;
+  if(pattern === 0) inner = genFlower(level, rand);
+  else if(pattern === 1) inner = genGrid(level, rand);
+  else inner = genSun(level, rand);
+  return `<svg id="svgHost" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+
+const levelGrid = document.getElementById('levelGrid');
+const starCountEl = document.getElementById('starCount');
+
+function totalStars(){ return progress.completed.length; }
+
+function renderMap(){
+  levelGrid.innerHTML = '';
+  starCountEl.textContent = totalStars();
+  const frag = document.createDocumentFragment();
+  for(let n=1;n<=TOTAL_LEVELS;n++){
+    const tile = document.createElement('button');
+    const done = progress.completed.includes(n);
+    const locked = n > progress.unlocked;
+    tile.className = 'level-tile' + (done ? ' done' : '') + (locked ? ' locked' : '');
+    tile.textContent = locked ? '🔒' : (done ? '⭐' : String(n));
+    if(!locked){
+      tile.addEventListener('click', ()=> openLevel(n));
+    }
+    frag.appendChild(tile);
+  }
+  levelGrid.appendChild(frag);
+}
+
+const mapScreen = document.getElementById('mapScreen');
+const playScreen = document.getElementById('playScreen');
+const svgHostWrap = document.querySelector('#playScreen .canvas-holder');
+const paletteEl = document.getElementById('palette');
+const levelNumEl = document.getElementById('levelNum');
+const adOverlay = document.getElementById('adOverlay');
+
+function buildPalette(){
+  paletteEl.innerHTML = '';
+  colors.forEach((c,i)=>{
+    const s = document.createElement('div');
+    s.className = 'swatch' + (i===currentColorIdx ? ' active':'');
+    s.style.background = c;
+    s.addEventListener('click', ()=>{
+      currentColor = c;
+      currentColorIdx = i;
+      document.querySelectorAll('.swatch').forEach(el=>el.classList.remove('active'));
+      s.classList.add('active');
+    });
+    paletteEl.appendChild(s);
+  });
+}
+
+function openLevel(n){
+  currentLevel = n;
+  levelNumEl.textContent = n;
+  svgHostWrap.innerHTML = generateLevelSVG(n);
+  const svg = svgHostWrap.querySelector('svg');
+  svg.querySelectorAll('[data-id]').forEach(el=>{
+    el.addEventListener('click', ()=>{ el.setAttribute('fill', currentColor); });
+  });
+  mapScreen.classList.remove('active');
+  playScreen.classList.add('active');
+}
+
+function backToMap(){
+  playScreen.classList.remove('active');
+  mapScreen.classList.add('active');
+  renderMap();
+}
+
+document.getElementById('backBtn').addEventListener('click', backToMap);
+document.getElementById('backToMapBtn').addEventListener('click', ()=>{
+  adOverlay.classList.remove('show');
+  backToMap();
+});
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  svgHostWrap.querySelectorAll('[data-id]').forEach(el=>el.setAttribute('fill', '#ffffff'));
+});
+
+document.getElementById('doneBtn').addEventListener('click', ()=>{
+  if(!progress.completed.includes(currentLevel)){
+    progress.completed.push(currentLevel);
+  }
+  if(currentLevel === progress.unlocked && progress.unlocked < TOTAL_LEVELS){
+    progress.unlocked += 1;
+  }
+  saveProgress();
+  document.getElementById('overlayTitle').textContent = 'Level ' + currentLevel + ' Complete!';
+  adOverlay.classList.add('show');
+});
+
+document.getElementById('nextLevelBtn').addEventListener('click', ()=>{
+  adOverlay.classList.remove('show');
+  const next = Math.min(currentLevel+1, TOTAL_LEVELS);
+  if(next <= progress.unlocked){
+    openLevel(next);
+  }else{
+    backToMap();
+  }
+});
+
+buildPalette();
+renderMap();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
